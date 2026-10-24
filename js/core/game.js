@@ -840,33 +840,57 @@ function v32init(){
  if(!s.v32)s.v32={days:[],totalProduced:0,totalProcessed:0,totalSold:0,totalUnmet:0,capacityNote:'Игровое допущение: 1 т = 1 условная единица объёма РВС.'};
  let d=s.v32;d.days||=[];return d;
 }
+/* Alpha 20.8: one physical flow for the legacy field (1 t = 1 conditional storage unit).
+   Pump/line and tank condition constrain transfers. Shipments draw only from tank stock. */
+function v208FlowLimits(){
+ const tanks=v30init().tanks, infra=s?.assets?.infrastructure||[];
+ const pumps=infra.filter(x=>/НАС|ДНС|НАСОС/i.test(String(x.id||'')+' '+String(x.type||'')));
+ const disabled=pumps.some(x=>Number(x.health)<35 || /останов|ремонт|авар/i.test(String(x.status||'')));
+ const health=pumps.length?Math.min(...pumps.map(x=>Math.max(0,Math.min(100,Number(x.health??100))))):100;
+ const pumpCapacity=disabled?0:Math.round(200*Math.max(.25,health/100)*100)/100;
+ const tankCapacity=tanks.reduce((n,x)=>n+Math.max(0,Number(x.capacity)||0),0);
+ const tankStock=tanks.reduce((n,x)=>n+Math.max(0,Number(x.level)||0),0);
+ return {pumpCapacity,tankCapacity,tankStock,free:Math.max(0,tankCapacity-tankStock)};
+}
 function v32settle(produced){
- let d=v32init(),t=v30init(),p=v31init();
- let tanks=t.tanks,storedBefore=tanks.reduce((n,x)=>n+(Number(x.level)||0),0);
- let totalCapacity=tanks.reduce((n,x)=>n+(Number(x.capacity)||0),0);
- let processed=0;
- if(!p.shutdown&&!p.fireEvent){
-  processed=Math.max(0,produced);
-  for(let meta of V31_STAGES){
-   let stage=p.stages.find(x=>x.id===meta.id);
-   if(!stage||!stage.online||stage.health<1){processed=0;break}
-   processed=Math.min(processed,meta.capacity*Math.max(.35,stage.health/100));
-  }
+ const d=v32init(),t=v30init(),p=v31init(),limits=v208FlowLimits();
+ const extracted=Math.max(0,Number(produced)||0);
+ let prepared=extracted;
+ if(p.shutdown||p.fireEvent)prepared=0;
+ else for(const meta of V31_STAGES){
+   const stage=p.stages.find(x=>x.id===meta.id);
+   if(!stage||!stage.online||stage.health<1){prepared=0;break;}
+   prepared=Math.min(prepared,meta.capacity*Math.max(.35,stage.health/100));
  }
- // The refinery-to-storage path first transfers processed oil to tanks, then dispatches
- // from stock. Daily dispatch is capped by a fixed simplified export line capacity.
- // Load processed oil into tanks, then dispatch only physically available inventory.
- let free=Math.max(0,totalCapacity-storedBefore);
- let added=Math.min(processed,free),remainder=added;
- for(let tank of tanks){let volume=Math.min(Math.max(0,tank.capacity-tank.level),remainder);tank.level+=volume;remainder-=volume;}
- let available=tanks.reduce((n,x)=>n+x.level,0);
- let dispatchCapacity=9000;
- let shipment=v33dispatch(Math.min(dispatchCapacity,available));
- let sold=shipment.sold,out=sold;
- for(let tank of tanks){let taken=Math.min(tank.level,out);tank.level-=taken;out-=taken;tank.level=Math.round(tank.level*100)/100;}
- let actualStored=added,unmet=Math.max(0,produced-processed),overflow=Math.max(0,processed-actualStored);
- t.inflow=Math.round(actualStored);t.outflow=Math.round(sold);
- let result={date:v8date(),produced:Math.round(produced*100)/100,processed:Math.round(processed*100)/100,sold:Math.round(sold*100)/100,stored:Math.round(tanks.reduce((n,x)=>n+x.level,0)*100)/100,contracts:shipment.allocations,unmet:Math.round(unmet*100)/100,overflow:Math.round(overflow*100)/100};
+ // The incoming pump cannot transfer more than its rated daily throughput or free RVS space.
+ const usableFree=t.tanks.filter(x=>Number(x.health)>=35).reduce((n,x)=>n+Math.max(0,(Number(x.capacity)||0)-(Number(x.level)||0)),0);
+ const transferred=Math.max(0,Math.min(prepared,limits.pumpCapacity,usableFree));
+ let rest=transferred;
+ for(const tank of t.tanks){
+   if(Number(tank.health)<35)continue;
+   const free=Math.max(0,(Number(tank.capacity)||0)-(Number(tank.level)||0));
+   const add=Math.min(free,rest);
+   tank.level=Math.round(((Number(tank.level)||0)+add)*100)/100;
+   rest=Math.max(0,rest-add);
+ }
+ const actualIn=Math.round((transferred-rest)*100)/100;
+ const stock=t.tanks.reduce((n,x)=>n+Math.max(0,Number(x.level)||0),0);
+ // Outgoing dispatch also requires a working transfer line; no oil is sold from an empty tank.
+ const shipment=v33dispatch(Math.min(9000,limits.pumpCapacity,stock));
+ const sold=Math.max(0,Math.min(stock,Number(shipment.sold)||0));
+ let remaining=sold;
+ for(const tank of t.tanks){
+   const take=Math.min(Math.max(0,Number(tank.level)||0),remaining);
+   tank.level=Math.round((Math.max(0,Number(tank.level)||0)-take)*100)/100;
+   remaining=Math.max(0,remaining-take);
+ }
+ const stored=Math.round(t.tanks.reduce((n,x)=>n+Math.max(0,Number(x.level)||0),0)*100)/100;
+ t.inflow=actualIn;t.outflow=Math.round(sold*100)/100;
+ const result={date:v8date(),produced:Math.round(extracted*100)/100,
+   processed:actualIn,sold:Math.round(sold*100)/100,stored,
+   contracts:shipment.allocations,unmet:Math.round(Math.max(0,extracted-actualIn)*100)/100,
+   overflow:0,pumpCapacity:limits.pumpCapacity,transferred:actualIn,
+   balanceError:Math.round((limits.tankStock+actualIn-sold-stored)*100)/100};
  d.days.push(result);if(d.days.length>730)d.days.shift();
  d.totalProduced=(d.totalProduced||0)+result.produced;
  d.totalProcessed=(d.totalProcessed||0)+result.processed;
@@ -874,6 +898,7 @@ function v32settle(produced){
  d.totalUnmet=(d.totalUnmet||0)+result.unmet;
  return result;
 }
+
 function v32view(){
  let d=v32init(),last=d.days[d.days.length-1];
  let rows=last?[
@@ -4145,14 +4170,14 @@ function a204Dashboard(){
  const tankStatus=tankHealth<35?'Остановлено':tankHealth<65?'Требует ремонта':'Работает';
  // A pump is shown operating only when oil actually moves into storage.
  const dailyInflow=Math.max(0,Number(tankRegister.inflow)||0);
- const pumpActive=dailyInflow>0 && tankStatus==='Работает';
+ const pumpActive=dailyInflow>0 && v208FlowLimits().pumpCapacity>0;
  const pumpStatus=pumpActive?'Работает':'Остановлено';
  const powerHealth=Number(power.health??92);
  const powerStatus=powerHealth<35?'Остановлено':powerHealth<65?'Требует ремонта':'Работает';
  const cards=[
  {name:'Скважина №'+w.id,sub:a204num(w.status==='Работает'?w.rate:0)+' т/сут',status:w.status,kind:'well',go:'dispatch'},
  {name:firstTank?.name||'РВС №1',sub:a204num(tankVolume)+' / '+a204num(tankCapacity)+' м³ · '+a204num(tankPct)+'%',status:tankStatus,kind:'tank',go:'assetsTree'},
- {name:'Насос / линия',sub:a204num(dailyInflow)+' усл. м³/сут',status:pumpStatus,kind:'pump',go:'assetsTree'},
+ {name:'Насос / линия',sub:a204num(dailyInflow)+' т/сут · факт перекачки',status:pumpStatus,kind:'pump',go:'assetsTree'},
  {name:power.id||'КТП №1',sub:a204num(s.small?.powerLoad??75)+'% нагрузки',status:powerStatus,kind:'power',go:'power'}
  ];
  const svg={

@@ -5664,3 +5664,77 @@ render=function(){
  v31bind();v33bind();
  const mark=document.getElementById('v23-build');if(mark)mark.textContent='Rebuild 27 · '+(s.assets?.wellList?.length||0)+' скв.';
 };
+
+
+/* Rebuild 28 — unified treasury. Reuses existing loan, deposit and share ledgers. */
+let r28FinanceMode='overview';
+function r28Stats(){
+ const loans=v35init().loans.filter(x=>x.status!=='Погашен');
+ const debt=loans.reduce((n,x)=>n+Math.max(0,Number(x.balance)||0),0);
+ const deposits=v5bankInit().deposits.filter(x=>x.status==='Открыт');
+ const principal=deposits.reduce((n,x)=>n+Math.max(0,Number(x.principal)||0),0);
+ const interest=deposits.reduce((n,x)=>n+Math.max(0,Number(x.accrued)||0),0);
+ const portfolio=v5exValuation(),shares=v5sharesInit(),equity=shares.founder/shares.issued*100;
+ const liquidity=s.cash+principal+interest+portfolio;
+ return {loans,debt,deposits,principal,interest,portfolio,shares,equity,liquidity,net:liquidity-debt};
+}
+function r28Tile(name,value,desc,percent,kind){
+ const pct=Math.max(0,Math.min(100,Number(percent)||0));
+ const cls=kind||'normal';
+ return `<div class="r28-tile ${cls}"><small>${name}</small><strong>${value}</strong><span>${desc}</span><div class="r28-track"><i style="width:${pct.toFixed(1)}%"></i></div></div>`;
+}
+function r28Overview(){
+ const d=r28Stats(),safe=d.liquidity>0?100*d.debt/d.liquidity:100;
+ const loanRate=d.loans.length?d.loans.reduce((a,l)=>a+l.rate*l.balance,0)/Math.max(1,d.debt):0;
+ const q=V5_EXCHANGE_LIST.map(c=>{const x=v5exInit().quotes[c.id];return {name:c.name,id:c.id,change:x.previous?100*(x.price/x.previous-1):0,price:x.price}});
+ let h=`<section class="r28-dashboard"><h2>Финансовый центр</h2><p class="muted">Все денежные суммы в млн ₸. Кредиты, депозиты и акции используют единый денежный остаток компании. Котировки и ставки — игровые.</p><div class="r28-tiles">
+ ${r28Tile('Деньги на счёте',m(s.cash),'Доступно для операций',Math.min(100,100*s.cash/Math.max(1,d.liquidity)))}
+ ${r28Tile('Кредитная задолженность',m(d.debt),d.loans.length+' активных кредитов · средняя ставка '+loanRate.toFixed(1)+'%',safe,safe>80?'danger':safe>45?'warning':'normal')}
+ ${r28Tile('Депозиты',m(d.principal+d.interest),'Начислено процентов '+m(d.interest),d.liquidity>0?100*(d.principal+d.interest)/d.liquidity:0)}
+ ${r28Tile('Портфель акций',m(d.portfolio),'Рыночная оценка на текущий день',d.liquidity>0?100*d.portfolio/d.liquidity:0)}
+ ${r28Tile('Чистая финансовая позиция',m(d.net),'Активы минус остаток долга',d.net>0?Math.min(100,100*d.net/Math.max(1,d.liquidity)):0,d.net<0?'danger':'normal')}
+ ${r28Tile('Доля основателей',d.equity.toFixed(2)+'%','Выпущено '+d.shares.issued.toLocaleString('ru-RU')+' акций',d.equity,d.equity<60?'warning':'normal')}
+ </div><div class="r28-shortcuts"><button class="btn" data-r28-action="loan">Получить кредит</button><button class="btn secondary" data-r28-action="deposit">Открыть депозит</button><button class="btn secondary" data-r28-mode="exchange">Купить акции</button><button class="btn secondary" data-r28-mode="shares">Привлечь инвесторов</button></div>`;
+ h+='<h3>Биржевые индикаторы · изменение за игровой день</h3><div class="r28-quotes">'+q.map(x=>`<div><small>${esc(x.name)}</small><b>${x.price.toLocaleString('ru-RU')} ₸</b><span class="${x.change>=0?'up':'down'}">${x.change>=0?'+':''}${x.change.toFixed(2)}%</span></div>`).join('')+'</div>';
+ h+='<h3>Финансовые обязательства</h3>';
+ h+=d.loans.length?d.loans.map(l=>`<div class="r28-entry"><span>Кредит №${l.id} · ${l.rate}% · осталось ${Math.max(0,l.remainingDays)} дней</span><b>${m(l.balance)}</b><button class="mini-btn" data-r28-repay="${l.id}">Погасить</button></div>`).join(''):'<p class="muted">Активных кредитов нет.</p>';
+ h+=d.deposits.length?d.deposits.map(x=>`<div class="r28-entry"><span>Депозит №${x.id} · ${x.rate}% · начислено ${m(x.accrued)}</span><b>${m(x.principal)}</b><button class="mini-btn" data-r28-withdraw="${x.id}">Закрыть</button></div>`).join(''):'<p class="muted">Открытых депозитов нет.</p>';
+ return h+'</section>';
+}
+function r28LoansView(){const d=r28Stats();return `<section class="r28-dashboard"><h2>Кредитный портфель</h2><div class="r28-tiles">${r28Tile('Основной долг',m(d.debt),'Остаток обязательств',Math.min(100,100*d.debt/Math.max(1,d.liquidity)))}${r28Tile('Активных кредитов',String(d.loans.length),'Сумма платежей зависит от сроков',d.loans.length*10)}${r28Tile('Деньги',m(s.cash),'Доступно для погашения',Math.min(100,100*s.cash/Math.max(1,d.debt)))}</div><div class="r28-shortcuts"><button class="btn" data-r28-action="loan">Привлечь кредит</button></div><div class="r28-entries">${v35init().loans.map(l=>`<div class="r28-entry"><span>№${l.id} · ${esc(l.status)} · ${l.rate}% · осталось ${Math.max(0,l.remainingDays)} дн.</span><b>${m(l.balance)}</b>${l.status==='Действует'?`<button class="mini-btn" data-r28-repay="${l.id}">Погасить</button>`:''}</div>`).join('')||'<p class="muted">Кредитов нет.</p>'}</div><p class="muted">Проценты начисляются ежедневно; погашение основного долга уменьшает деньги и задолженность, но не считается операционным расходом.</p></section>`}
+function r28FinanceView(){const tabs=[['overview','Обзор'],['loans','Кредиты'],['deposits','Депозиты'],['shares','Акции АО'],['exchange','Фондовый рынок'],['reports','Отчёты']];let h='<nav class="r28-tabs">'+tabs.map(([k,n])=>`<button class="${r28FinanceMode===k?'active':''}" data-r28-mode="${k}">${n}</button>`).join('')+'</nav>';
+ if(r28FinanceMode==='overview')return h+r28Overview();
+ if(r28FinanceMode==='loans')return h+r28LoansView();
+ if(r28FinanceMode==='deposits')return h+v5bankView();
+ if(r28FinanceMode==='shares')return h+v5sharesView();
+ if(r28FinanceMode==='exchange')return h+v5exView();
+ return h;
+}
+const r28PreviousRender=render;
+render=function(){
+ r28PreviousRender();
+ const mark=document.getElementById('v23-build');if(mark)mark.textContent='Rebuild 28';
+ if(!s||tab!=='finance')return;
+ const host=document.getElementById('body');if(!host)return;
+ const old=host.innerHTML;
+ if(r28FinanceMode==='reports'){
+   host.insertAdjacentHTML('afterbegin',r28FinanceView());
+ }else{
+   host.innerHTML=r28FinanceView();
+ }
+};
+document.addEventListener('click',function(e){
+ const b=e.target.closest('[data-r28-mode],[data-r28-action],[data-r28-repay],[data-r28-withdraw],[data-v5-deposit-open],[data-v5-deposit-close],[data-v5-shares-issue],[data-v5-shares-dividend],[data-v5ex-buy],[data-v5ex-sell]');
+ if(!b||tab!=='finance')return;
+ e.preventDefault();e.stopImmediatePropagation();
+ if(b.dataset.r28Mode){r28FinanceMode=b.dataset.r28Mode;render();return}
+ if(b.dataset.r28Action==='loan'){v35borrow();return}
+ if(b.dataset.r28Action==='deposit'||b.hasAttribute('data-v5-deposit-open')){v5bankOpen();return}
+ if(b.hasAttribute('data-r28-repay')){v35repay(Number(b.dataset.r28Repay));return}
+ if(b.hasAttribute('data-r28-withdraw')){v5bankWithdraw(Number(b.dataset.r28Withdraw));return}
+ if(b.hasAttribute('data-v5-deposit-close')){v5bankWithdraw(Number(b.dataset.v5DepositClose));return}
+ if(b.hasAttribute('data-v5-shares-issue')){v5sharesIssue();return}
+ if(b.hasAttribute('data-v5-shares-dividend')){v5sharesDividend();return}
+ if(b.hasAttribute('data-v5ex-buy')){v5exTradePrompt(b.dataset.v5exBuy,'buy');return}
+ if(b.hasAttribute('data-v5ex-sell')){v5exTradePrompt(b.dataset.v5exSell,'sell');return}
+},true);

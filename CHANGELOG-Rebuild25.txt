@@ -1,0 +1,1 @@
+Rebuild 25: compact dispatch KPI indicators; staffing dismissal controls; supported facility and utility demolition controls; painting contractor controls retained. Full browser E2E not verified.

@@ -1,0 +1,9 @@
+/* Rebuild 27 — compact restored operational views */
+.r27-panel{margin-top:12px;padding:12px;border:1px solid #315267;border-radius:10px;background:#142938}
+.r27-panel h2{font-size:16px;margin:0 0 8px}.r27-panel h3{font-size:14px;margin:12px 0 6px}
+.r27-panel .v31-flow{display:flex;flex-wrap:wrap;align-items:center;gap:7px;overflow-x:auto}
+.r27-panel .v31-unit{flex:1 1 125px;min-width:125px;max-width:230px}
+.r27-panel .v31-arrow{flex:0 0 auto}
+.r27-panel .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.r27-panel table{min-width:660px}
+@media(max-width:650px){.r27-panel{padding:9px}.r27-panel .v31-unit{min-width:110px}.r27-panel h2{font-size:15px}}

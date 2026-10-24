@@ -1,0 +1,16 @@
+/* Rebuild 24: compact inbox; no global KPIs on messages tab. */
+body.r24-inbox #stats, body.r24-inbox #v13nav, body.r24-inbox #body .dispatch-kpis,
+body.r24-inbox #body .dash401-panel, body.r24-inbox #body .v5-operations {display:none!important}
+body.r24-inbox #game > section.card:first-child {padding:9px 12px!important;margin-bottom:6px!important}
+body.r24-inbox #body {padding:12px!important}
+body.r24-inbox #body .v11hero {min-height:0!important;padding:8px 12px!important;margin-bottom:8px!important}
+body.r24-inbox #body .v11hero svg {display:none!important}
+body.r24-inbox #body .v11hero h2 {font-size:17px!important;margin:0!important}
+body.r24-inbox #body .v14tools {gap:5px!important;margin:5px 0!important}
+body.r24-inbox #body .v14tools button {padding:5px 8px!important;font-size:12px!important}
+.r24-energy-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0}
+.r24-energy-stat {background:#12283a;border:1px solid #315369;border-radius:9px;padding:11px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.r24-energy-stat small {color:#9bb8c8;font-size:11px}.r24-energy-stat b {font-size:17px;color:#e8f7fa}
+.r24-painting {border:1px solid #34556a;border-radius:10px;padding:12px;margin-top:12px}
+.r24-painting h2 {margin:0 0 9px;font-size:16px}
+@media(max-width:600px){.r24-energy-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.r24-energy-stat{padding:7px 5px}.r24-energy-stat b{font-size:12px}.r24-energy-stat small{font-size:10px}}

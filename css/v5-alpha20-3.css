@@ -1,0 +1,8 @@
+/* Alpha 20.3: persistent landing screen, simpler navigation */
+.ui435-search{display:none!important}
+#v5a202-home{z-index:2147483000!important;display:block;}
+#v5a202-home.hide{display:none!important}
+#v5a203-quick{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:6px 0}
+#v5a203-quick button{background:#161b21;color:#fff;border:1px solid #a52b39;border-radius:9px;padding:9px 12px;font-size:13px;font-weight:650;cursor:pointer}
+#v5a203-quick button:first-child{background:#bc122b}
+@media(max-width:600px){#v5a203-quick button{min-height:44px}#v5a202-home{padding:12px}.v5a202-home-inner{min-height:calc(100dvh - 24px)}}

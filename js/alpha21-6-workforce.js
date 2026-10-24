@@ -21,11 +21,44 @@
  if(gap){out+='<p>Кандидаты на вакансию:</p>';for(let i=0;i<3;i++){const c=candidate(r.id,i);out+='<div class="a216-person"><span><b>'+escapeText(c.name)+'</b><small>Стаж '+c.experience+' лет · компетентность '+c.skill+'% · оклад '+c.salary.toFixed(2)+' млн ₸</small></span><button type="button" data-a216-hire="'+r.id+'" data-a216-index="'+i+'">Нанять</button></div>'}}else out+='<p class="muted">Штат укомплектован. При вводе новых скважин потребность пересчитается.</p>';
  for(const emp of active(r.id))out+='<div class="a216-person"><span><b>'+escapeText(emp.name)+'</b><small>Оклад '+emp.salary.toFixed(2)+' млн ₸ · стаж '+emp.experience+' лет</small></span><button type="button" data-a216-fire="'+emp.id+'">Уволить</button></div>';
  out+='</div></details>'}return out+'<p class="muted">Нехватка операторов снижает эффективную добычу; нехватка ремонтников увеличивает производственные потери. Данные персонала сохраняются вместе с карьерой.</p></section>'}
- const oldRender=render;render=function(){oldRender();if(!s||tab!=='staff')return;const body=document.getElementById('body');if(body)body.insertAdjacentHTML('afterbegin',view())};
+ // Place recruitment on both personnel screens and provide a dedicated sidebar entry.
+ if(typeof a212Sections!=='undefined'){
+  for(const section of a212Sections){section[1].splice(0,section[1].length,...section[1].filter(item=>!['group','refinery','retail','fleet'].includes(item[0])));}
+  const personnel=a212Sections.find(section=>section[0]==='Персонал');
+  if(personnel&&!personnel[1].some(item=>item[0]==='workforce'))personnel[1].splice(1,0,['workforce','🧰','Подбор производственного персонала']);
+ }
+ const oldRender=render;render=function(){
+  const dedicated=tab==='workforce';
+  if(dedicated)tab='career';
+  oldRender();
+  if(dedicated)tab='workforce';
+  if(!s||!['staff','career','workforce'].includes(tab))return;
+  const body=document.getElementById('body');
+  if(body){
+   if(dedicated)body.innerHTML=view();
+   else body.insertAdjacentHTML('afterbegin',view());
+  }
+  if(dedicated){
+   document.querySelectorAll('[data-a213-tab],[data-a212-tab]').forEach(b=>b.classList.toggle('active',b.dataset.a213Tab==='workforce'||b.dataset.a212Tab==='workforce'));
+  }
+ };
  document.addEventListener('click',async function(e){const b=e.target.closest('[data-a216-hire],[data-a216-fire]');if(!b||!s)return;e.preventDefault();e.stopImmediatePropagation();const wf=workforce();
  if(b.dataset.a216Hire){const role=b.dataset.a216Hire,idx=Number(b.dataset.a216Index),r=roles.find(x=>x.id===role);if(!r||active(role).length>=demand(r))return;const c=candidate(role,idx);if(wf.staff.some(x=>x.status==='Работает'&&x.name===c.name))return uiAlert('Этот кандидат уже работает');if(!await uiConfirm('Нанять '+c.name+' · '+r.name+'? Оклад '+c.salary+' млн ₸/мес.'))return;const fee=Math.round(c.salary*.25*100)/100;if(s.cash<fee)return uiAlert('Недостаточно средств на подбор');s.cash-=fee;wf.staff.push({...c,id:'F'+(++wf.seq),role,status:'Работает'});wf.history.unshift('Нанят '+c.name+' · '+r.name);}
  else {const emp=wf.staff.find(x=>x.id===b.dataset.a216Fire&&x.status==='Работает');if(!emp||!await uiConfirm('Уволить '+emp.name+'? Должность станет вакантной.'))return;emp.status='Уволен';wf.history.unshift('Уволен '+emp.name);}
  wf.history=wf.history.slice(0,80);save();render();},true);
- // Payroll and output are applied once per monthly transition, not during rendering.
- const oldNext=next;next=function(){if(s&&!s.dead){const wf=workforce();const shortage=roles.map(r=>({id:r.id,ratio:Math.min(1,active(r.id).length/demand(r))}));const operators=shortage.find(x=>x.id==='operator').ratio,mechanics=shortage.find(x=>x.id==='mechanic').ratio;const payroll=wf.staff.filter(x=>x.status==='Работает').reduce((n,x)=>n+x.salary,0);const before=s.cash;oldNext();if(!s)return;const loss=Math.max(0,Number(s.volume||0))*(1-operators)*.12;const repairLoss=Math.max(0,Number(s.volume||0))*(1-mechanics)*.025;const deduction=payroll+(loss+repairLoss)*Math.max(0,Number(s.oil||0))*Math.max(0,Number(s.usd||0))/1000000; s.cash-=deduction;if(Number.isFinite(s.profit))s.profit-=deduction;if(s.v8?.salaryFund!==undefined){/* Field payroll is charged here, not duplicated in legacy salary fund. */}if(typeof log==='function'&&(payroll||loss||repairLoss))log('Полевой персонал: ФОТ '+payroll.toFixed(2)+' млн ₸, потери от нехватки '+(deduction-payroll).toFixed(2)+' млн ₸');save();render();}};
+ // Charge workforce wages once per in-game month, not once per day.
+ const oldNext=next;next=function(){
+  const before=s?{year:s.year,month:s.month,day:s.day,period:s.monthIndex,stamp:typeof v8date==='function'?v8date():''}:null;
+  oldNext();
+  if(!s||!before||s.dead)return;
+  const after=typeof v8date==='function'?v8date():'';
+  const monthChanged=(Number.isFinite(before.month)&&s.month!==before.month)||(Number.isFinite(before.monthIndex)&&s.monthIndex!==before.monthIndex)||(before.stamp&&after&&before.stamp.slice(3)!==after.slice(3));
+  if(!monthChanged)return;
+  const wf=workforce();const payroll=wf.staff.filter(x=>x.status==='Работает').reduce((n,x)=>n+x.salary,0);
+  if(!payroll)return;
+  s.cash-=payroll;
+  if(Number.isFinite(s.profit))s.profit-=payroll;
+  if(typeof log==='function')log('Зарплата производственного персонала: '+payroll.toFixed(2)+' млн ₸');
+  save();render();
+ };
 })();

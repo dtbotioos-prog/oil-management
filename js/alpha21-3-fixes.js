@@ -1,13 +1,5 @@
 /* Alpha 21.3 focused UI repairs; original save schema remains unchanged. */
 (function(){
- const oldCards=window.v5cards;
- if(typeof oldCards==='function')window.v5cards=function(){
-  if(typeof s==="undefined"||!s?.small)return oldCards();
-  const wells=s.assets?.wellList||[];
-  const cards=wells.map(w=>{const state=w.status==='Работает'?(typeof v5status==='function'?v5status(w):'work'):'stop';return v5card('Скважина №'+w.id,'well',state,(w.status==='Работает'?f(w.rate||0):'0')+' т/сут')}).join('');
-  const old=oldCards();
-  return old.replace(/<div class="v5-equipment-grid">[\s\S]*?<\/div><\/section>/,()=>'<div class="v5-equipment-grid">'+cards+'</div></section>');
- };
  const oldProjects=window.fx420ProjectHtml;
  if(typeof oldProjects==='function')window.fx420ProjectHtml=function(){
   const html=oldProjects();return '<details class="a213-invest"><summary>Результат инвестиций · до и после</summary>'+html.replace('<h3>Результат инвестиций · до и после</h3>','')+'</details>';

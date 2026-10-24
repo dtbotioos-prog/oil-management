@@ -4135,13 +4135,25 @@ function a204Dashboard(){
  const infra=s.assets.infrastructure||[];
  const find=(word)=>infra.find(x=>(x.id+' '+x.type).toLowerCase().includes(word))||{};
  const tank=find('рвс'),pump=find('насос'),power=find('ктп');
- const tankLevel=Number(s.small?.tank?.level??s.enterprise?.tank?.level??68);
- const tankPct=Math.max(0,Math.min(100,Number.isFinite(tankLevel)?tankLevel:68));
+ // Read the SAME tank register used by the reservoir park screen; never show sample percentages.
+ const tankRegister=v30init();
+ const firstTank=tankRegister.tanks[0];
+ const tankVolume=Math.max(0,Number(firstTank?.level)||0);
+ const tankCapacity=Math.max(0,Number(firstTank?.capacity)||0);
+ const tankPct=tankCapacity?Math.max(0,Math.min(100,100*tankVolume/tankCapacity)):0;
+ const tankHealth=Number(firstTank?.health??0);
+ const tankStatus=tankHealth<35?'Остановлено':tankHealth<65?'Требует ремонта':'Работает';
+ // A pump is shown operating only when oil actually moves into storage.
+ const dailyInflow=Math.max(0,Number(tankRegister.inflow)||0);
+ const pumpActive=dailyInflow>0 && tankStatus==='Работает';
+ const pumpStatus=pumpActive?'Работает':'Остановлено';
+ const powerHealth=Number(power.health??92);
+ const powerStatus=powerHealth<35?'Остановлено':powerHealth<65?'Требует ремонта':'Работает';
  const cards=[
- {name:'Скважина №'+w.id,sub:a204num(w.rate)+' т/сут',status:w.status,kind:'well',go:'dispatch'},
- {name:tank.id||'РВС №1',sub:a204num(tankPct)+'% заполнения',status:tank.status||'Работает',kind:'tank',go:'assetsTree'},
- {name:pump.id||'Насос №1',sub:a204num(s.small?.pumpRate??42)+' м³/ч',status:pump.status||'Работает',kind:'pump',go:'assetsTree'},
- {name:power.id||'КТП №1',sub:a204num(s.small?.powerLoad??75)+'% нагрузки',status:power.status||'Работает',kind:'power',go:'power'}
+ {name:'Скважина №'+w.id,sub:a204num(w.status==='Работает'?w.rate:0)+' т/сут',status:w.status,kind:'well',go:'dispatch'},
+ {name:firstTank?.name||'РВС №1',sub:a204num(tankVolume)+' / '+a204num(tankCapacity)+' м³ · '+a204num(tankPct)+'%',status:tankStatus,kind:'tank',go:'assetsTree'},
+ {name:'Насос / линия',sub:a204num(dailyInflow)+' усл. м³/сут',status:pumpStatus,kind:'pump',go:'assetsTree'},
+ {name:power.id||'КТП №1',sub:a204num(s.small?.powerLoad??75)+'% нагрузки',status:powerStatus,kind:'power',go:'power'}
  ];
  const svg={
  well:`<svg viewBox="0 0 340 220" aria-hidden="true"><path d="M4 82H336" stroke="#d3ac70" stroke-width="4"/><path d="M173 82V205" stroke="#a6c0d2" stroke-width="20" stroke-linecap="round"/><path d="M173 115V200" stroke="#20c8ae" stroke-width="7" stroke-dasharray="13 12"/><rect x="140" y="52" width="68" height="33" rx="5" fill="#8eabbc" stroke="#c6d8e1" stroke-width="5"/><path d="M124 68H140M208 68H223" stroke="#c6d8e1" stroke-width="9" stroke-linecap="round"/><path d="M173 52V37" stroke="#c6d8e1" stroke-width="8"/><circle cx="173" cy="28" r="12" fill="#f1b84b"/><path d="M223 68H287V37M287 37l-11-11m11 11 11-11" fill="none" stroke="#29c7b3" stroke-width="6"/></svg>`,
@@ -4170,11 +4182,12 @@ render=function(){
    const source=document.createElement('div');source.innerHTML=a204Dashboard();
    const cards=source.querySelectorAll('.a205-card');
    const kinds=['well','tank','pump','power'];
-   const heading=document.createElement('h3');heading.textContent='2D-индикаторы оборудования';holder.appendChild(heading);
+   // No extra indicator heading: equipment is part of its native section.
    const grid=document.createElement('div');grid.className='a206-grid';
    routes[tab].forEach(kind=>{const idx=kinds.indexOf(kind);if(cards[idx]){
      const card=cards[idx].cloneNode(true);card.classList.remove('selected');card.classList.add('a206-'+kind);
      card.dataset.a206Kind=kind;
+     card.setAttribute('aria-label',card.getAttribute('aria-label')||kind);
      const status=card.querySelector('.a205-status');
      if(status&&status.classList.contains('stopped'))card.classList.add('a206-stopped');
      grid.appendChild(card);
@@ -4195,7 +4208,7 @@ function v5svg(type,status,level){
  if(type==='pump')return `<svg viewBox="0 0 150 100" role="img" aria-label="Насос"><rect x="30" y="35" width="88" height="45" rx="10" fill="#36556c" stroke="#a8b9c6" stroke-width="3"/><circle cx="75" cy="57" r="17" fill="#20394c" stroke="#d9ab50" stroke-width="3"/><g stroke="#d9ab50" stroke-width="3"><path d="M75 43V71 M61 57H89 M65 47L85 67 M85 47L65 67"/>${active?'<animateTransform attributeName="transform" type="rotate" from="0 75 57" to="360 75 57" dur="3s" repeatCount="indefinite"/>':''}</g><path d="M15 57H30 M118 57H135" stroke="#6fd5c5" stroke-width="6"/></svg>`;
  return `<svg viewBox="0 0 150 100" role="img" aria-label="Электроснабжение"><rect x="40" y="20" width="70" height="65" rx="6" fill="#36556c" stroke="#a7bac7" stroke-width="3"/><path d="M82 30L62 56H77L66 75L91 47H76Z" fill="${active?'#f4c55a':'#72879b'}"/><circle cx="101" cy="30" r="4" fill="${active?'#25b98a':'#e3ae45'}"/></svg>`;
 }
-function v5card(title,type,status,metric){let labels={work:'В работе',repair:'Требует ремонта',stop:'Остановлено'};return `<article class="v5-equipment-card"><div class="v5-equipment-head"><strong>${esc(title)}</strong><i class="v5-status-dot ${status}" aria-hidden="true"></i></div><div class="v5-equipment-graphic">${v5svg(type,status,type==='tank'?68:0)}</div><strong class="v5-equipment-metric">${esc(metric)}</strong><small class="v5-equipment-state ${status}">${labels[status]}</small></article>`}
+function v5card(title,type,status,metric){let labels={work:'В работе',repair:'Требует ремонта',stop:'Остановлено'};return `<article class="v5-equipment-card"><div class="v5-equipment-head"><strong>${esc(title)}</strong><i class="v5-status-dot ${status}" aria-hidden="true"></i></div><div class="v5-equipment-graphic">${v5svg(type,status,type==='tank'?(v30init().tanks[0]?.capacity?100*(v30init().tanks[0].level||0)/v30init().tanks[0].capacity:0):0)}</div><strong class="v5-equipment-metric">${esc(metric)}</strong><small class="v5-equipment-state ${status}">${labels[status]}</small></article>`}
 function v5cards(){if(!s?.small)return '';let wells=s.assets?.wellList||[],w=wells[0],infra=s.assets?.infrastructure||[];let find=(needle)=>infra.find(o=>String(o.id).includes(needle));let tank=find('РВС'),pump=find('ДНС')||find('НАС')||find('ВЛ'),power=find('КТП')||find('ПС');let ws=w?.status==='Работает'?(v5status(w)):'stop';return `<section class="v5-operations"><div class="v5-operations-title"><h2>Производственные объекты</h2><span>2D · оперативная панель</span></div><div class="v5-equipment-grid">${v5card('Скважина №'+(w?.id||1001),'well',ws,(w?.status==='Работает'?f(w?.rate||0):'0')+' т/сут')}${v5card('РВС №1','tank',v5status(tank),'Резервуар · '+(s.small.tankCapacity||1000)+' т')}${v5card('Насос / линия','pump',v5status(pump),'Готовность '+Math.round(pump?.health||90)+'%')}${v5card('КТП №1','power',v5status(power),'Готовность '+Math.round(power?.health||92)+'%')}</div></section>`}
 function v5cashInit(){if(!s.v5cash)s.v5cash={lastCash:Number(s.cash)||0,changes:[],version:1};return s.v5cash}
 function v5cashCheck(){if(!s)return;let a=v5cashInit(),now=Number(s.cash)||0,delta=Math.round((now-a.lastCash)*1000)/1000;if(Math.abs(delta)>0.0001){a.changes.push({date:typeof v8date==='function'&&s.v8?v8date():'',delta,balance:now,category:'Изменение денежных средств (источник требует сверки)'});if(a.changes.length>2000)a.changes.splice(0,a.changes.length-2000)}a.lastCash=now}

@@ -56,3 +56,16 @@
 .a206-links button{border:1px solid #527082;border-radius:8px;background:#274254;color:#fff;padding:9px 12px;cursor:pointer}
 .a206-links button:hover{background:#37576b}
 @media(max-width:520px){.a206-section{padding:8px}.a206-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.a206-grid .a205-picture{max-height:110px}}
+
+/* Alpha 20.7: integrate indicators into the existing dark UI, no light panel */
+.a206-section{background:transparent!important;color:#e6f0f6!important;border:0!important;box-shadow:none!important;padding:0!important;margin:8px 0 14px!important}
+.a206-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,155px),195px))!important;gap:9px!important}
+.a206-grid .a205-card{background:#203444!important;border:1px solid #3d5a6c!important;color:#e6f0f6!important;border-radius:12px!important;padding:8px!important;box-shadow:none!important}
+.a206-grid .a205-card-title{color:#e6f0f6!important;font-size:12px!important}
+.a206-grid .a205-metric{color:#e6f0f6!important;font-size:12px!important}
+.a206-grid .a205-picture{background:#142b3d!important;max-height:112px!important}
+.a206-grid .a205-status{color:#3dd4a6!important}
+.a206-grid .a205-status.stopped{color:#f48d8d!important}
+.a206-pump:not(.a206-stopped) svg g[stroke="#f2b64a"]{transform-box:view-box;transform-origin:50% 56%;animation:a206rotate 2.5s linear infinite}
+.a206-tank svg g[clip-path] rect{animation:none!important;transition:y .45s ease,height .45s ease}
+@media(max-width:520px){.a206-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.a206-grid .a205-picture{max-height:100px!important}}

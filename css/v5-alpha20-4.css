@@ -20,3 +20,39 @@
 #a205-equipment .a205-status.stopped{color:#c44}
 #a205-equipment .a205-hint{color:#687783;font-size:12px;margin:13px 2px 0}
 @media(max-width:560px){#a205-equipment{padding:7px}#a205-equipment .a205-grid{gap:7px}#a205-equipment .a205-card{padding:7px;border-radius:12px}#a205-equipment .a205-card.selected,#a205-equipment .a205-card:hover{padding:6px}#a205-equipment .a205-picture{aspect-ratio:1.2}#a205-equipment .a205-card-title{font-size:12px}#a205-equipment .a205-metric{font-size:12px}}
+
+/* Alpha 20.6: compact reference artwork and functional animation */
+#a205-equipment{display:none}
+.a206-section{background:#e9eff3;color:#172b3b;border-radius:14px;padding:12px;margin:0 0 18px}
+.a206-section h3{font-size:15px;margin:0 0 10px;color:#172b3b}
+.a206-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,185px),220px));gap:10px}
+.a206-grid .a205-card{background:#fff;border:1px solid #cfdce4;border-radius:12px;padding:8px;min-width:0;text-align:left;cursor:pointer;color:#152b3d;font:inherit}
+.a206-grid .a205-card:hover,.a206-grid .a205-card:focus-visible{outline:2px solid #3c91e8;outline-offset:1px}
+.a206-grid .a205-card-title{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:5px}
+.a206-grid .a205-card-title i{background:#21bc92;width:7px;height:7px;border-radius:50%}
+.a206-grid .a205-card-title i.stopped{background:#e25b5b}
+.a206-grid .a205-picture{background:#152b3d;border-radius:9px;overflow:hidden;aspect-ratio:1.65;max-height:130px}
+.a206-grid svg{width:100%;height:100%}
+.a206-grid .a205-metric{font-size:12px;font-weight:700;margin-top:6px}
+.a206-grid .a205-status{font-size:11px;color:#009d62;margin-top:3px}
+.a206-grid .a205-status.stopped{color:#c44}
+.a206-well:not(.a206-stopped) svg path[stroke-dasharray="13 12"]{animation:a206oil 1.4s linear infinite}
+.a206-pump:not(.a206-stopped) svg g[stroke="#f2b64a"]{transform-origin:170px 123px;animation:a206rotate 2.5s linear infinite}
+.a206-tank:not(.a206-stopped) svg g[clip-path] rect{animation:a206fill 3s ease-in-out infinite alternate;transform-origin:bottom}
+.a206-power:not(.a206-stopped) svg circle[fill="#23c49e"]{animation:a206pulse 1.6s ease-in-out infinite}
+@keyframes a206oil{to{stroke-dashoffset:-50}}
+@keyframes a206rotate{to{transform:rotate(360deg)}}
+@keyframes a206fill{from{opacity:.76}to{opacity:1}}
+@keyframes a206pulse{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.a206-grid *{animation:none!important}}
+.a206-overview{background:#152533;color:#e8f0f5;border-radius:14px;padding:20px}
+.a206-overview h2{color:#f2b64a;margin:0 0 8px}
+.a206-overview p{color:#b5c4ce;font-size:13px}
+.a206-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:16px 0}
+.a206-kpis>div{background:#213747;border-radius:10px;padding:13px}
+.a206-kpis small{display:block;color:#adc0cb;font-size:11px}
+.a206-kpis strong{display:block;font-size:20px;color:#fff;margin-top:5px}
+.a206-links{display:flex;flex-wrap:wrap;gap:8px}
+.a206-links button{border:1px solid #527082;border-radius:8px;background:#274254;color:#fff;padding:9px 12px;cursor:pointer}
+.a206-links button:hover{background:#37576b}
+@media(max-width:520px){.a206-section{padding:8px}.a206-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.a206-grid .a205-picture{max-height:110px}}

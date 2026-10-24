@@ -4151,8 +4151,38 @@ function a204Dashboard(){
  };
  return `<div id="a205-equipment"><div class="a205-head"><h2>Оборудование месторождения</h2><span>Оперативный обзор · месяц ${a204num(s.month)}</span></div><div class="a205-grid">${cards.map((c,i)=>`<button type="button" class="a205-card ${i===0?'selected':''}" data-a204-go="${c.go}" aria-label="${c.name}: ${c.sub}, ${c.status}"><div class="a205-card-title"><span>${c.name}</span><i class="${c.status==='Работает'?'':'stopped'}"></i></div><div class="a205-picture">${svg[c.kind]}</div><div class="a205-metric">${c.sub}</div><div class="a205-status ${c.status==='Работает'?'':'stopped'}">${c.status==='Работает'?'В работе':c.status}</div></button>`).join('')}</div><p class="a205-hint">Нажми на объект, чтобы перейти к управлению. Показатели являются игровыми; для объектов без подключённых датчиков используются условные значения.</p></div>`;
 }
+/* Alpha 20.6: keep reference illustrations, display in their relevant sections. */
+function a206Overview(){
+ const wells=s?.assets?.wellList||[];
+ const active=wells.filter(w=>/работ/i.test(String(w.status||''))).length;
+ const total=wells.reduce((n,w)=>n+Number(w.rate||0),0);
+ return `<div class="a206-overview"><h2>Центр управления компанией</h2><p>Производственные показатели и события. Иллюстрации оборудования находятся в профильных разделах.</p><div class="a206-kpis"><div><small>Скважины в работе</small><strong>${active} / ${wells.length}</strong></div><div><small>Дебит скважин</small><strong>${a204num(total)} т/сут</strong></div><div><small>Игровой месяц</small><strong>${a204num(s.month)}</strong></div></div><div class="a206-links"><button data-a204-go="dispatch">Скважины и добыча →</button><button data-a204-go="assetsTree">Резервуары и насосы →</button><button data-a204-go="power">Энергоснабжение →</button></div><p class="a206-note">Финансы, контракты и остальные системы доступны в меню игры.</p></div>`;
+}
 const a204render=render;
-render=function(){a204render();if(tab==='overview'&&s&&document.getElementById('body')){const target=document.getElementById('body');target.innerHTML=a204Dashboard();target.querySelectorAll('[data-a204-go]').forEach(b=>b.onclick=()=>{tab=b.dataset.a204Go;render()});target.querySelectorAll('[data-well-index]').forEach(el=>{const go=()=>{tab='dispatch';render()};el.addEventListener('click',go);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}})});}}
+render=function(){
+ a204render();
+ if(!s)return;
+ const target=document.getElementById('body');if(!target)return;
+ if(tab==='overview')target.innerHTML=a206Overview();
+ const routes={dispatch:['well'],field:['well'],assetsTree:['tank','pump'],equipment:['tank','pump'],power:['power']};
+ if(routes[tab]){
+   const holder=document.createElement('div');holder.className='a206-section';
+   const source=document.createElement('div');source.innerHTML=a204Dashboard();
+   const cards=source.querySelectorAll('.a205-card');
+   const kinds=['well','tank','pump','power'];
+   const heading=document.createElement('h3');heading.textContent='2D-индикаторы оборудования';holder.appendChild(heading);
+   const grid=document.createElement('div');grid.className='a206-grid';
+   routes[tab].forEach(kind=>{const idx=kinds.indexOf(kind);if(cards[idx]){
+     const card=cards[idx].cloneNode(true);card.classList.remove('selected');card.classList.add('a206-'+kind);
+     card.dataset.a206Kind=kind;
+     const status=card.querySelector('.a205-status');
+     if(status&&status.classList.contains('stopped'))card.classList.add('a206-stopped');
+     grid.appendChild(card);
+   }});
+   holder.appendChild(grid);target.prepend(holder);
+ }
+ target.querySelectorAll('[data-a204-go]').forEach(b=>b.onclick=()=>{tab=b.dataset.a204Go;render()});
+};
 
 })();
 /* v5 Alpha 1: compact mobile operations cards and auditable cash snapshots.

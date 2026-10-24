@@ -1,0 +1,1 @@
+Alpha 21.5: Disabled retired subsidiary, refinery, fuel retail, downstream fleet, export and trading daily effects and views. Legacy save fields retained for compatibility. HR system remains in original game code. No full browser playthrough performed.

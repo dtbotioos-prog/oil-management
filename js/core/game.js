@@ -1193,8 +1193,8 @@ function v36campView(){
 }
 function v36contractsView(){
  let list=v28migrateNames().contracts.filter(c=>c.status==='Исполняется'||c.status==='Завершён').slice(0,35);
- let out='<h2>Акты, этапы работ и ввод объектов · v3.6</h2><p class="muted">Три этапа приёмки: подготовка (20%), основные работы (50%), испытания и сдача (30%). Этапы требуют подтверждения менеджера. Договоры предыдущих версий сохраняют прежний порядок полной оплаты при заключении: акты здесь не вызывают повторных платежей.</p>';
- if(!list.length)out+='<p class="muted">Действующих и завершённых договоров пока нет.</p>';
+ let out=list.length?'<h2>Акты приёмки и ввод объектов</h2>':'';
+ 
  for(let c of list){
   let x=v36contract(c);
   out+='<div class="mini-card v36-contract"><b>Договор №'+c.id+' · '+esc(c.objectName||V27_TYPES[c.type]?.label||c.type)+'</b>'+row('Подрядчик',esc(c.supplier))+row('Готовность',Math.round(c.progress||0)+'%')+row('Стоимость',m(c.price))+row('Удержание по модели (информационно)',m(x.holdback));
@@ -3704,7 +3704,7 @@ function cap418Audit(){
  '<details><summary>Почему эти работы исключены</summary>'+Object.entries(CAP418_DISABLED).map(([id,reason])=>'<p><b>'+esc(V27_TYPES[id]?.label||id)+'</b> — '+esc(reason)+'</p>').join('')+'</details><p class="muted">Работающие направления (ПРС/КРС, РВС, инфраструктура с расчётными мощностями, вспомогательные объекты с производственными коэффициентами) сохранены.</p></section>';
 }
 const cap418OldContractView=v27view;
-v27view=function(){return cap418OldContractView()+cap418Audit()};
+v27view=function(){return cap418OldContractView()};
 // Existing tenders can be inspected, but not awarded when the effect is disconnected.
 const cap418OldAward=v27award;
 v27award=async function(id,bid){let t=v28migrateNames().tenders.find(x=>x.id===id);if(t&&!cap418Allowed(t.type))return uiAlert('Заключение новых договоров этого вида приостановлено. Тендер сохранён для истории.');return cap418OldAward(id,bid)};
@@ -5280,3 +5280,13 @@ render=function(){
  }
  a210Sidebar();
 };
+
+/* Alpha 21.2: final navigation reconciliation, independent of legacy sidebar wrappers. */
+const a212Sections=[['Управление компанией',[['overview','🏠','Кабинет директора'],['decisions','⚡','Решения'],['events','📜','Журнал'],['inbox','✉','Входящие']]],['Производство',[['daily','📅','Добыча и планы'],['dispatch','📡','Диспетчерская'],['assetsTree','🛢','Скважины и ГУ'],['workshops','🏭','Цеха и KPI']]],['Персонал',[['career','👥','Найм работников'],['staff','🪪','Штатное расписание'],['camp','🏘','Вахтовый посёлок']]],['Экономика',[['finance','₸','Финансы'],['group','🏢','Холдинг'],['refinery','🏭','НПЗ'],['retail','⛽','АЗС'],['fleet','🚛','Логистика'],['market','📈','Рынок нефти'],['contracts','🤝','Подрядчики']]],['Инфраструктура',[['equipment','⚙','Оборудование'],['warehouse','📦','Склад'],['power','⚡','Энергоснабжение']]],['Безопасность',[['hse','🛡','Единый центр безопасности']]]];
+function a212Sidebar(){
+ const host=document.getElementById('v11sideitems');if(!host||!s)return;
+ const open=new Map([...host.querySelectorAll('details[data-a212-group]')].map(x=>[x.dataset.a212Group,x.open]));
+ host.innerHTML=a212Sections.map(([name,entries])=>'<details data-a212-group="'+name+'" class="group397-nav" '+(open.get(name)!==false?'open':'')+'><summary>'+name+'</summary>'+entries.map(([id,icon,label])=>'<button type="button" class="v11sidebtn '+(tab===id?'active':'')+'" data-a212-tab="'+id+'" title="'+label+'"><span class="ico">'+icon+'</span><span class="txt">'+label+'</span></button>').join('')+'</details>').join('');
+ host.querySelectorAll('[data-a212-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.a212Tab;v11focus=null;render();});
+}
+const a212PreviousRender=render;render=function(){a212PreviousRender();a212Sidebar();};
